@@ -70,10 +70,8 @@
   </div>
 
   <script>
-    // Helper: zero-pad numbers to 2 digits
     const pad2 = (n) => String(n).padStart(2, '0');
 
-    // Use an absolute ISO timestamp with the UAE offset so there's no UTC/local mix-up.
     // Flight time: 29 Aug 2025 @ 16:30 (UTC+04:00)
     const eventDate = new Date('2025-08-29T16:30:00+04:00');
 
@@ -83,18 +81,51 @@
 
     function inclusiveDaysBetween(start, end) {
       const msPerDay = 24 * 60 * 60 * 1000;
-      return Math.floor((startOfLocalDay(end) - startOfLocalDay(start)) / msPerDay) + 1; // inclusive
+      return Math.floor((startOfLocalDay(end) - startOfLocalDay(start)) / msPerDay) + 1;
     }
 
     function workingDaysInclusive(start, end) {
-      // Counts Mon–Fri only (excludes Saturday & Sunday) and is inclusive of both start and end dates
+      // Counts Sun–Fri only (excludes Saturday) and is inclusive of end date.
+      // If current Dubai time is after 09:30, do NOT count today as a working day.
+      const tz = 'Asia/Dubai';
+
+      // Helper: get Dubai Y-M-D-H-M from any Date
+      const parts = (d) => {
+        const p = new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(d);
+        const map = Object.fromEntries(p.map(o => [o.type, o.value]));
+        return {
+          y: map.year, m: map.month, d: map.day,
+          hh: parseInt(map.hour, 10), mm: parseInt(map.minute, 10)
+        };
+      };
+
+      // Dubai midnight for the given date
+      const dubaiMidnight = (d) => {
+        const { y, m, d: dd } = parts(d);
+        return new Date(`${y}-${m}-${dd}T00:00:00+04:00`);
+      };
+
+      // Establish counting start date in Dubai
+      const nowParts = parts(start);
+      let countStart = dubaiMidnight(start);
+
+      // If after 09:30 Dubai time, move start to next day
+      if (nowParts.hh > 9 || (nowParts.hh === 9 && nowParts.mm >= 30)) {
+        countStart = new Date(countStart.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      const countEnd = dubaiMidnight(end);
+
       let count = 0;
-      const d = startOfLocalDay(start);
-      const last = startOfLocalDay(end);
-      while (d <= last) {
-        const dow = d.getDay(); // Sun=0 ... Sat=6
-        if (dow !== 0 && dow !== 6) count++; // Mon–Fri only
-        d.setDate(d.getDate() + 1);
+      for (let d = new Date(countStart); d <= countEnd; d = new Date(d.getTime() + 24 * 60 * 60 * 1000)) {
+        const dow = d.getUTCDay(); // still OK because date has fixed +04:00 offset midnight; but use UTC day safely
+        // Convert to Dubai day-of-week by building a Date in Dubai offset hours
+        const dubaiDOW = new Date(d.getTime() + 4 * 60 * 60 * 1000).getUTCDay();
+        if (dubaiDOW !== 6) count++; // 6 = Saturday in Dubai
       }
       return count;
     }
@@ -111,9 +142,8 @@
         return;
       }
 
-      // --- Time blocks ---
       const totalSeconds = Math.floor(diff / 1000);
-      const months = Math.floor(totalSeconds / (30 * 24 * 60 * 60)); // simple 30-day months for display
+      const months = Math.floor(totalSeconds / (30 * 24 * 60 * 60));
       const days = Math.floor((totalSeconds % (30 * 24 * 60 * 60)) / (24 * 60 * 60));
       const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -125,13 +155,21 @@
       document.getElementById('hourMinuteSecond').innerHTML =
         `${pad2(hours)} Hours ${pad2(minutes)} Minutes <span class="seconds">${pad2(seconds)} Seconds</span>`;
 
-      // --- Calendar/working days (inclusive of today & event day) ---
       const today = new Date();
-      const totalDays = inclusiveDaysBetween(today, eventDate);
-      const workDays = workingDaysInclusive(today, eventDate);
 
-      document.getElementById('totaldays').textContent = `📆 Total Days (incl. today & event day): ${totalDays}`;
-      document.getElementById('workingdays').textContent = `📅 Working Days (Mon–Fri, inclusive): ${workDays}`;
+      // Adjust starting day if after 09:30 UAE time, skip today
+      const uaeNow = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Dubai' }));
+      const uaeCutoff = new Date(uaeNow.getFullYear(), uaeNow.getMonth(), uaeNow.getDate(), 9, 30, 0);
+      let adjustedStart = today;
+      if (uaeNow > uaeCutoff) {
+        adjustedStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      }
+
+      const totalDays = inclusiveDaysBetween(adjustedStart, eventDate);
+      const workDays = workingDaysInclusive(adjustedStart, eventDate);
+
+      document.getElementById('totaldays').textContent = `📆 Total Days (incl. event day): ${totalDays}`;
+      document.getElementById('workingdays').textContent = `📅 Working Days (Sun–Fri, excl. Sat; after 09:30 today not counted): ${workDays}`;
     }
 
     updateCountdown();
