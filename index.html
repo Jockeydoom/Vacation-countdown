@@ -27,21 +27,21 @@
     }
 
     h1 {
-      font-size: 7em; /* Extra Large */
+      font-size: 4em;
       margin-bottom: 40px;
       animation: fadeIn 2s ease-in-out;
     }
 
-    .label {
-      font-size: 2.2em; /* Medium */
-      margin: 8px 0;
-      animation: fadeInUp 1.5s ease-out;
-    }
-
     .time-big {
-      font-size: 4em; /* Large */
+      font-size: 3em;
       margin: 10px 0;
       animation: fadeInUp 2s ease-out;
+    }
+
+    .milliseconds {
+      font-size: 1.5em;
+      color: yellow;
+      font-weight: bold;
     }
 
     .seconds {
@@ -63,118 +63,41 @@
 <body>
   <div class="overlay">
     <h1>✈️ Vacation Countdown</h1>
-    <div class="time-big" id="monthDay">Loading...</div>
     <div class="time-big" id="hourMinuteSecond">Loading...</div>
-    <div class="label" id="totaldays">Calculating...</div>
-    <div class="label" id="workingdays">Calculating...</div>
+    <div class="milliseconds" id="milliseconds">Loading...</div>
   </div>
 
   <script>
     const pad2 = (n) => String(n).padStart(2, '0');
+    const pad3 = (n) => String(n).padStart(3, '0');
 
     // Flight time: 29 Aug 2025 @ 17:00 (UTC+04:00)
     const eventDate = new Date('2025-08-29T17:00:00+04:00');
-
-    function startOfLocalDay(d) {
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-
-    function inclusiveDaysBetween(start, end) {
-      const msPerDay = 24 * 60 * 60 * 1000;
-      return Math.floor((startOfLocalDay(end) - startOfLocalDay(start)) / msPerDay) + 1;
-    }
-
-    function workingDaysInclusive(start, end) {
-      // Counts Sun–Fri only (excludes Saturday) and is inclusive of end date.
-      // If current Dubai time is after 09:30, do NOT count today as a working day.
-      const tz = 'Asia/Dubai';
-
-      // Helper: get Dubai Y-M-D-H-M from any Date
-      const parts = (d) => {
-        const p = new Intl.DateTimeFormat('en-CA', {
-          timeZone: tz,
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit', hour12: false
-        }).formatToParts(d);
-        const map = Object.fromEntries(p.map(o => [o.type, o.value]));
-        return {
-          y: map.year, m: map.month, d: map.day,
-          hh: parseInt(map.hour, 10), mm: parseInt(map.minute, 10)
-        };
-      };
-
-      // Dubai midnight for the given date
-      const dubaiMidnight = (d) => {
-        const { y, m, d: dd } = parts(d);
-        return new Date(`${y}-${m}-${dd}T00:00:00+04:00`);
-      };
-
-      // Establish counting start date in Dubai
-      const nowParts = parts(start);
-      let countStart = dubaiMidnight(start);
-
-      // If after 09:30 Dubai time, move start to next day
-      if (nowParts.hh > 9 || (nowParts.hh === 9 && nowParts.mm >= 30)) {
-        countStart = new Date(countStart.getTime() + 24 * 60 * 60 * 1000);
-      }
-
-      const countEnd = dubaiMidnight(end);
-
-      let count = 0;
-      for (let d = new Date(countStart); d <= countEnd; d = new Date(d.getTime() + 24 * 60 * 60 * 1000)) {
-        const dow = d.getUTCDay(); // still OK because date has fixed +04:00 offset midnight; but use UTC day safely
-        // Convert to Dubai day-of-week by building a Date in Dubai offset hours
-        const dubaiDOW = new Date(d.getTime() + 4 * 60 * 60 * 1000).getUTCDay();
-        if (dubaiDOW !== 6) count++; // 6 = Saturday in Dubai
-      }
-      return count;
-    }
 
     function updateCountdown() {
       const now = new Date();
       const diff = eventDate - now;
 
       if (diff <= 0) {
-        document.getElementById('monthDay').textContent = '';
         document.getElementById('hourMinuteSecond').textContent = '🛫 Have a great flight!';
-        document.getElementById('totaldays').textContent = '';
-        document.getElementById('workingdays').textContent = '';
+        document.getElementById('milliseconds').textContent = '';
         return;
       }
 
-      const totalSeconds = Math.floor(diff / 1000);
-      const months = Math.floor(totalSeconds / (30 * 24 * 60 * 60));
-      const days = Math.floor((totalSeconds % (30 * 24 * 60 * 60)) / (24 * 60 * 60));
-      const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-
-      document.getElementById('monthDay').textContent =
-        `${months} Month${months !== 1 ? 's' : ''} ${days} Day${days !== 1 ? 's' : ''}`;
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      const milliseconds = diff % 1000;
 
       document.getElementById('hourMinuteSecond').innerHTML =
         `${pad2(hours)} Hours ${pad2(minutes)} Minutes <span class="seconds">${pad2(seconds)} Seconds</span>`;
 
-      const today = new Date();
-
-      // Adjust starting day if after 09:30 UAE time, skip today
-      const uaeNow = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Dubai' }));
-      const uaeCutoff = new Date(uaeNow.getFullYear(), uaeNow.getMonth(), uaeNow.getDate(), 9, 30, 0);
-      let adjustedStart = today;
-      if (uaeNow > uaeCutoff) {
-        adjustedStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-      }
-
-      const totalDays = inclusiveDaysBetween(adjustedStart, eventDate);
-      const workDays = workingDaysInclusive(adjustedStart, eventDate);
-
-      document.getElementById('totaldays').textContent = `📆 Total Days (incl. event day): ${totalDays}`;
-      document.getElementById('workingdays').textContent = `📅 Working Days (Sun–Fri, excl. Sat; after 09:30 today not counted): ${workDays}`;
+      document.getElementById('milliseconds').textContent =
+        `${pad3(milliseconds)} Milliseconds`;
     }
 
     updateCountdown();
-    setInterval(updateCountdown, 1000);
+    setInterval(updateCountdown, 10); // refresh every 10ms for smooth millis
   </script>
 </body>
 </html>
-
