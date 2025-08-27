@@ -1,16 +1,268 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>✈️ Vacation Countdown</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<title>✈️ Vacation Countdown</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    overflow-x: hidden;
+    position: relative;
+    background: black;
+    color: white;
+  }
+
+  /* Background Videos */
+  .bg-video {
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    z-index:-1;
+    opacity:0.5;
+  }
+
+  h1 {
+    margin-top: 20px;
+    font-size: 70px;
+    color: silver;
+    text-shadow: 0 0 15px gold, 0 0 30px gold, 0 0 60px gold;
+    animation: goldGlow 2s infinite alternate;
+  }
+
+  @keyframes goldGlow {
+    from { text-shadow: 0 0 10px gold, 0 0 20px gold; }
+    to   { text-shadow: 0 0 30px gold, 0 0 60px gold; }
+  }
+
+  .grid {
+    display: flex;
+    justify-content: center;
+    margin-top: 50px;
+  }
+
+  .card {
+    background: rgba(20,20,20,0.85);
+    padding: 40px;
+    border-radius: 25px;
+    width: 400px;
+    height: 350px;
+    perspective: 1000px;
+    box-shadow: 0 0 30px #0ff, inset 0 0 15px #0ff;
+    animation: flyIn 1s ease forwards;
+    cursor: pointer;
+  }
+
+  @keyframes flyIn {
+    from { opacity:0; transform:translateY(-50px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 1s;
+    transform-style: preserve-3d;
+  }
+
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 25px;
+  }
+
+  .card-front { display:flex; flex-direction:column; justify-content:center; align-items:center; }
+  .card-back {
+    transform: rotateY(180deg);
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    background:#111; border-radius:25px;
+  }
+
+  h2 {
+    margin:0 0 15px;
+    font-size: 34px;
+    color:#ff0;
+    text-shadow: 0 0 12px #ff0, 0 0 24px #ff0;
+  }
+
+  .last-duty {
+    font-size: 20px;
+    color: grey;
+    margin: 8px 0;
+  }
+
+  .countdown span {
+    font-weight: bold;
+    font-size: 32px;
+    text-shadow: 0 0 5px #000;
+    margin: 0 3px;
+  }
+
+  .month { color: cyan; animation: glowCyan 1.5s infinite alternate; }
+  .day   { color: blue; animation: glowBlue 1.5s infinite alternate; }
+  .hour  { color: yellow; animation: glowYellow 1.5s infinite alternate; }
+  .minute{ color: green; animation: glowGreen 1.5s infinite alternate; }
+  .second{ color: red; animation: glowRed 1.5s infinite alternate; }
+
+  @keyframes glowCyan { from { text-shadow:0 0 5px #0ff;} to {text-shadow:0 0 20px #0ff;} }
+  @keyframes glowBlue { from { text-shadow:0 0 5px #00f;} to {text-shadow:0 0 20px #00f;} }
+  @keyframes glowYellow { from { text-shadow:0 0 5px #ff0;} to {text-shadow:0 0 20px #ff0;} }
+  @keyframes glowGreen { from { text-shadow:0 0 5px #0f0;} to {text-shadow:0 0 20px #0f0;} }
+  @keyframes glowRed { from { text-shadow:0 0 5px #f00;} to {text-shadow:0 0 20px #f00;} }
+
+  .return {
+    font-size: 24px;
+    margin-top: 12px;
+    color: #ff69b4;
+    text-shadow: 0 0 12px #ff69b4, 0 0 24px #ff69b4;
+    animation: glowPulsePink 2s infinite alternate;
+  }
+
+  @keyframes glowPulsePink {
+    from { text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff69b4; }
+    to   { text-shadow: 0 0 20px #ff69b4, 0 0 40px #ff69b4; }
+  }
+
+  .vacation-word {
+    font-size: 28px;
+    color: #0ff;
+    margin: 5px 0;
+    text-shadow: 0 0 12px #0ff, 0 0 24px #0ff;
+  }
+
+  .flight-status {
+    margin-top: 50px;
+    font-size: 22px;
+    color: #ff0;
+    text-shadow: 0 0 12px #ff0, 0 0 24px #ff0;
+  }
+
+</style>
 </head>
 <body>
-  <div class="overlay">
-    <h1 class="title animate-title">✈️ Vacation Countdown</h1>
-    <div class="time-big" id="hourMinuteSecond">Loading...</div>
-    <div class="milliseconds" id="milliseconds">Loading...</div>
+
+<!-- Background Videos -->
+<video class="bg-video" autoplay muted loop>
+  <source src="https://assets.mixkit.co/videos/7031/7031-720.mp4" type="video/mp4">
+</video>
+<video class="bg-video" autoplay muted loop style="opacity:0.4;">
+  <source src="https://assets.mixkit.co/videos/27988/27988-720.mp4" type="video/mp4">
+</video>
+
+<h1>🌴 Vacation Countdown</h1>
+
+<div class="grid">
+  <!-- Nivin -->
+  <div class="card" id="nCard" onclick="this.classList.toggle('flipped'); startVacationWords()">
+    <div class="card-inner">
+      <div class="card-front">
+        <h2>Nivin Varkey</h2>
+        <p class="last-duty" id="lastDuty1"></p>
+        <p class="countdown" id="flightCountdown1"></p>
+        <p class="return" id="returnCountdown1"></p>
+      </div>
+      <div class="card-back" id="vacationWordsContainer">
+        <!-- Words appear here -->
+      </div>
+    </div>
   </div>
-  <script src="script.js"></script>
+</div>
+
+<!-- Flightradar24 Status Placeholder -->
+<div class="flight-status" id="flightStatus">
+  Flight Indigo 6E1404 Status: <span>Loading...</span>
+</div>
+
+<script>
+const person = {
+  lastDuty: "2025-08-29T17:00:00+04:00",
+  flight: "2025-08-30T13:40:00+04:00",
+  return: "2025-09-30T01:35:00+04:00",
+  ids: { last:"lastDuty1", flight:"flightCountdown1", ret:"returnCountdown1" }
+};
+
+const vacationWords = ["Beach","Sunset","Cocktails","Relax","Adventure","Hiking","Snorkeling","Exploring","Shopping","Memories"];
+let wordIndex = 0;
+let wordInterval = null;
+
+function formatCountdownGrey(targetDate){
+  let now = new Date();
+  let diff = new Date(targetDate) - now;
+  if(diff<=0) return null;
+  let months = Math.floor(diff/(1000*60*60*24*30));
+  let days = Math.floor((diff%(1000*60*60*24*30))/(1000*60*60*24));
+  let hours = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+  let minutes = Math.floor((diff%(1000*60*60))/(1000*60));
+  let seconds = Math.floor((diff%(1000*60))/1000);
+  return `${months}m ${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
+function formatCountdownColor(targetDate){
+  let now = new Date();
+  let diff = new Date(targetDate) - now;
+  if(diff<=0) return null;
+  let months = Math.floor(diff/(1000*60*60*24*30));
+  let days = Math.floor((diff%(1000*60*60*24*30))/(1000*60*60*24));
+  let hours = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+  let minutes = Math.floor((diff%(1000*60*60))/(1000*60));
+  let seconds = Math.floor((diff%(1000*60))/1000);
+  return `<span class="month">${months}m</span> 
+          <span class="day">${days}d</span> 
+          <span class="hour">${hours}h</span> 
+          <span class="minute">${minutes}m</span> 
+          <span class="second">${seconds}s</span>`;
+}
+
+function updateCountdowns(){
+  document.getElementById(person.ids.last).textContent = formatCountdownGrey(person.lastDuty) || "✅ Done";
+  let flightText = formatCountdownColor(person.flight);
+  if(flightText){
+    document.getElementById(person.ids.flight).innerHTML = flightText;
+    document.getElementById(person.ids.ret).textContent="";
+  } else {
+    let returnText = formatCountdownColor(person.return);
+    document.getElementById(person.ids.flight).textContent="✈️ Flight Time!";
+    document.getElementById(person.ids.ret).innerHTML = returnText||"😢 Back to Duty";
+  }
+}
+setInterval(updateCountdowns,1000);
+updateCountdowns();
+
+// Vacation words rotation
+function startVacationWords(){
+  const container = document.getElementById("vacationWordsContainer");
+  container.innerHTML = "";
+  wordIndex = 0;
+  if(wordInterval) clearInterval(wordInterval);
+  wordInterval = setInterval(()=>{
+    container.innerHTML = `<div class="vacation-word">${vacationWords[wordIndex]}</div>`;
+    wordIndex = (wordIndex + 1) % vacationWords.length;
+  }, 1000);
+}
+
+// Flightradar24 Status Fetch (dummy example, replace with API if needed)
+function updateFlightStatus(){
+  // This is a placeholder, in real scenario you would fetch from Flightradar24 API
+  const statusElem = document.querySelector("#flightStatus span");
+  // Simulate flight status change
+  const now = new Date();
+  const flightTime = new Date(person.flight);
+  if(now < flightTime) statusElem.textContent = "Scheduled";
+  else if(now > flightTime && now < new Date(person.return)) statusElem.textContent = "In Flight";
+  else statusElem.textContent = "Landed";
+}
+setInterval(updateFlightStatus,5000);
+updateFlightStatus();
+</script>
+
 </body>
 </html>
